@@ -1,36 +1,38 @@
-# app/custom_widgets.py
+"""Custom widgets module."""
 from PyQt6.QtWidgets import QTextEdit, QApplication
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QWheelEvent, QKeyEvent
 
+
 class AdvancedTextEdit(QTextEdit):
-    """
-    一个增强版的文本编辑器，支持Ctrl+滚轮缩放和自动缩进。
-    """
+    """增强版 QTextEdit: Ctrl+滚轮/加减缩放、Ctrl+-/+=、可配置回车缩进"""
+    fontZoomRequested = pyqtSignal(int)  # 发射 +1 / -1
+
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.enter_mode: str = 'fullwidth'
+
+    def set_enter_mode(self, mode: str):
+        if mode in ('fullwidth', 'halfwidth', 'none'):
+            self.enter_mode = mode
 
     def wheelEvent(self, event: QWheelEvent):
-        """
-        重写鼠标滚轮事件，实现缩放功能。
-        """
-        # 使用 QApplication.keyboardModifiers() 进行更可靠的检查
         if QApplication.keyboardModifiers() == Qt.KeyboardModifier.ControlModifier:
-            angle = event.angleDelta().y()
-            if angle > 0:
-                self.zoomIn(1)
-            else:
-                self.zoomOut(1)
-            
+            delta = 1 if event.angleDelta().y() > 0 else -1
+            self.fontZoomRequested.emit(delta)
             event.accept()
-        else:
-            # 如果没有按Ctrl，则执行默认的滚动行为
-            super().wheelEvent(event)
+            return
+        super().wheelEvent(event)
 
     def keyPressEvent(self, event: QKeyEvent):
-        """
-        重写按键事件，实现换行时自动缩进。
-        """
+        if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+            if event.key() in (Qt.Key.Key_Plus, Qt.Key.Key_Equal):
+                self.fontZoomRequested.emit(1); event.accept(); return
+            if event.key() == Qt.Key.Key_Minus:
+                self.fontZoomRequested.emit(-1); event.accept(); return
         super().keyPressEvent(event)
         if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
-            self.insertPlainText('　　')
+            if self.enter_mode == 'fullwidth':
+                self.insertPlainText('　　')
+            elif self.enter_mode == 'halfwidth':
+                self.insertPlainText('  ')

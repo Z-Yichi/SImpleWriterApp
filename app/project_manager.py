@@ -3,6 +3,7 @@ import os
 import json
 import uuid
 import re
+import html as _html
 from .config import (CHAPTER_PREFIX, CHAPTER_SUFFIX, CHAPTER_PADDING,
                      VOLUME_PREFIX, VOLUME_SUFFIX, VOLUME_USE_CHINESE_NUMERALS)
 
@@ -98,14 +99,22 @@ def delete_item(project_path, data, item_id):
         if volume['id'] == item_id:
             for chapter in volume.get('children', []):
                 if chapter.get('filename'):
-                    try: os.remove(os.path.join(project_path, 'chapters', chapter.get('filename')))
+                    chapter_filename = chapter.get('filename')
+                    # 删富文本文件
+                    try: os.remove(os.path.join(project_path, 'chapters', chapter_filename))
+                    except FileNotFoundError: pass
+                    # 删纯文本备份
+                    try: os.remove(os.path.join(project_path, 'plain_backup', chapter_filename))
                     except FileNotFoundError: pass
             del data['structure'][i]
             return True
         for j, chapter in enumerate(volume.get('children', [])):
             if chapter['id'] == item_id:
                 if chapter.get('filename'):
-                    try: os.remove(os.path.join(project_path, 'chapters', chapter.get('filename')))
+                    chapter_filename = chapter.get('filename')
+                    try: os.remove(os.path.join(project_path, 'chapters', chapter_filename))
+                    except FileNotFoundError: pass
+                    try: os.remove(os.path.join(project_path, 'plain_backup', chapter_filename))
                     except FileNotFoundError: pass
                 del volume['children'][j]
                 return True
@@ -135,6 +144,28 @@ def load_chapter_content(project_path, filename):
 def save_chapter_content(project_path, filename, content):
     chapter_path = os.path.join(project_path, 'chapters', filename)
     try:
-        with open(chapter_path, 'w', encoding='utf-8') as f: f.write(content)
+        with open(chapter_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        # 生成纯文本备份
+        try:
+            backup_dir = os.path.join(project_path, 'plain_backup')
+            os.makedirs(backup_dir, exist_ok=True)
+            plain = content
+            # 保留段落/换行
+            plain = re.sub(r'(?i)<br\s*/?>', '\n', plain)
+            plain = re.sub(r'(?i)</p>', '\n', plain)
+            # 去除样式与脚本
+            plain = re.sub(r'(?is)<style.*?</style>', '', plain)
+            plain = re.sub(r'(?is)<script.*?</script>', '', plain)
+            # 去标签
+            plain = re.sub(r'<[^>]+>', '', plain)
+            # HTML 实体
+            plain = _html.unescape(plain)
+            # 规范换行: 去除多余连续空行（保留最多两个）
+            plain = re.sub(r'\n{3,}', '\n\n', plain)
+            with open(os.path.join(backup_dir, filename), 'w', encoding='utf-8') as pf:
+                pf.write(plain.strip() + '\n')
+        except Exception:
+            pass
         return True, "保存成功"
     except Exception as e: return False, str(e)

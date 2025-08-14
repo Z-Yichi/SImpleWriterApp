@@ -13,11 +13,17 @@ DEFAULT_SETTINGS = {
         "theme": "vscode_dark",
         "editor_font_family": "Microsoft YaHei",
         "editor_font_size": 16,
+    "ui_font_family": "Microsoft YaHei",
+    "ui_font_size": 14,
         "auto_save_interval": 3000,
         "line_spacing_percent": 150,
         # 【新增】背景设置
         "background_image_path": "",
-        "background_opacity": 80 # 百分比
+    "background_opacity": 80, # 百分比
+    # 【新增】回车行为: none / halfwidth / fullwidth
+    "enter_mode": "fullwidth",
+    # 【新增】是否显示行数统计
+    "show_line_numbers": False,
     }
 }
 
